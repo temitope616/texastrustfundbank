@@ -1,4 +1,3 @@
-import { createClient } from '@libsql/client';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -97,10 +96,16 @@ export function databaseConfig(env = process.env) {
   return { url: pathToFileURL(defaultDatabaseFile).href };
 }
 
-export function createDatabase({ url, authToken } = databaseConfig()) {
+export async function createDatabase({ url, authToken } = databaseConfig()) {
   if (url.startsWith('file:')) {
+    // Local SQLite files need the native libSQL driver.
     mkdirSync(path.dirname(fileURLToPath(url)), { recursive: true });
+    const { createClient } = await import('@libsql/client');
+    return new Database(createClient({ url, authToken }));
   }
+  // Remote Turso databases use the pure-JavaScript HTTP client: no native binary,
+  // which keeps serverless bundles (Vercel) working.
+  const { createClient } = await import('@libsql/client/web');
   return new Database(createClient({ url, authToken }));
 }
 
@@ -224,7 +229,7 @@ export async function initializeDatabase(database) {
 
 /** Opens and migrates the configured database. */
 export async function openDatabase(config) {
-  const database = createDatabase(config);
+  const database = await createDatabase(config);
   await initializeDatabase(database);
   return database;
 }
