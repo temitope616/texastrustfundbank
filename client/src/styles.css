@@ -211,6 +211,10 @@ h2, h3, p { letter-spacing: 0; }
 .input-prefix > span { padding-left: 11px; color: #68798a; font-size: 11px; }
 .input-prefix input { border: 0; outline: 0 !important; box-shadow: none !important; }
 .field-hint { color: var(--muted); font-size: 10px; font-weight: 400; }
+.password-input { position: relative; display: block; }
+.password-input input { padding-right: 58px; }
+.password-toggle { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); min-width: 44px; min-height: 30px; padding: 4px 8px; border: 0; border-radius: 4px; color: var(--blue); background: none; cursor: pointer; font-size: 11px; font-weight: 650; }
+.password-toggle:hover { background: #f5e9eb; }
 .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px; }
 .form-aside { padding: 4px 0 0 20px; border-left: 1px solid var(--line); }
 .form-aside > .aside-symbol { margin-bottom: 18px; }

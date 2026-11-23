@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { FieldError, InlineError } from '../components/BankingUI.jsx';
+import { FieldError, InlineError, PasswordInput } from '../components/BankingUI.jsx';
 import BrandLockup from '../components/BrandLockup.jsx';
 
 export default function LoginPage() {
@@ -130,15 +130,15 @@ export default function LoginPage() {
             <form className="form-stack" onSubmit={submitRegistration} noValidate>
               <label className="field"><span>Name</span><input autoComplete="name" maxLength={80} value={registration.displayName} onChange={(event) => setRegistration({ ...registration, displayName: event.target.value })} /><FieldError>{fieldErrors.displayName}</FieldError></label>
               <label className="field"><span>Email address</span><input type="email" autoComplete="email" placeholder="yourname@texas-trust.test" value={registration.email} onChange={(event) => setRegistration({ ...registration, email: event.target.value })} /><small className="field-hint">Use a made-up address ending in @texas-trust.test. Real email addresses are not accepted.</small><FieldError>{fieldErrors.registrationEmail}</FieldError></label>
-              <label className="field"><span>Password</span><input type="password" autoComplete="new-password" value={registration.password} onChange={(event) => setRegistration({ ...registration, password: event.target.value })} /><FieldError>{fieldErrors.registrationPassword}</FieldError></label>
-              <label className="field"><span>Confirm password</span><input type="password" autoComplete="new-password" value={registration.confirmPassword} onChange={(event) => setRegistration({ ...registration, confirmPassword: event.target.value })} /><FieldError>{fieldErrors.confirmPassword}</FieldError></label>
+              <label className="field"><span>Password</span><PasswordInput autoComplete="new-password" value={registration.password} onChange={(event) => setRegistration({ ...registration, password: event.target.value })} /><FieldError>{fieldErrors.registrationPassword}</FieldError></label>
+              <label className="field"><span>Confirm password</span><PasswordInput autoComplete="new-password" value={registration.confirmPassword} onChange={(event) => setRegistration({ ...registration, confirmPassword: event.target.value })} /><FieldError>{fieldErrors.confirmPassword}</FieldError></label>
               <button className="button primary full" disabled={busy}>{busy ? 'Creating account…' : 'Create view-only account'}</button>
               <button type="button" className="text-button centered" onClick={() => { setMode('login'); setFieldErrors({}); setError(''); }}>Back to sign in</button>
             </form>
           ) : (
             <form className="form-stack" onSubmit={submitCredentials} noValidate>
               <label className="field"><span>Email address</span><input type="email" autoComplete="username" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /> <FieldError>{fieldErrors.email}</FieldError></label>
-              <label className="field"><span>Password</span><input type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /> <FieldError>{fieldErrors.password}</FieldError></label>
+              <label className="field"><span>Password</span><PasswordInput autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /> <FieldError>{fieldErrors.password}</FieldError></label>
               <button className="button primary full" disabled={busy}>{busy ? 'Signing in…' : 'Continue'}</button>
               <button type="button" className="text-button centered" onClick={() => { setMode('register'); setNotice(''); setError(''); setFieldErrors({}); }}>Open an account</button>
             </form>

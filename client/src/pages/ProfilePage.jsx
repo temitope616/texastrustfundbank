@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../api.js';
-import { FieldError, InlineError, PageHeading } from '../components/BankingUI.jsx';
+import { FieldError, InlineError, PageHeading, PasswordInput } from '../components/BankingUI.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function ProfilePage() {
@@ -14,6 +14,44 @@ export default function ProfilePage() {
   const [profileBusy, setProfileBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [emailChange, setEmailChange] = useState({ newEmail: '', currentPassword: '' });
+  const [emailError, setEmailError] = useState('');
+  const [emailNotice, setEmailNotice] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
+
+  async function changeEmail(event) {
+    event.preventDefault();
+    setEmailError('');
+    setEmailNotice('');
+    const newEmail = emailChange.newEmail.trim().toLowerCase();
+    if (!/^[a-z0-9._%+-]+@texas-trust\.test$/.test(newEmail)) {
+      setEmailError('Use an email address ending in @texas-trust.test.');
+      return;
+    }
+    if (newEmail === user?.email) {
+      setEmailError('That is already your sign-in email.');
+      return;
+    }
+    if (!emailChange.currentPassword) {
+      setEmailError('Enter your current password to confirm this change.');
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      const result = await apiRequest('/profile/email', {
+        token,
+        method: 'PATCH',
+        body: { newEmail, currentPassword: emailChange.currentPassword }
+      });
+      updateProfile({ email: result.profile.email });
+      setEmailChange({ newEmail: '', currentPassword: '' });
+      setEmailNotice(result.message);
+    } catch (requestError) {
+      setEmailError(requestError.message);
+    } finally {
+      setEmailBusy(false);
+    }
+  }
 
   useEffect(() => {
     apiRequest('/profile', { token })
@@ -81,7 +119,7 @@ export default function ProfilePage() {
           {profileNotice && <div className="inline-banner success-banner" role="status">{profileNotice}</div>}
           <label className="field"><span>Display name</span><input autoComplete="name" maxLength={80} value={profile.displayName} onChange={(event) => setProfile({ ...profile, displayName: event.target.value })} /></label>
           <label className="field"><span>Contact number (optional)</span><input autoComplete="tel" maxLength={32} value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} /></label>
-          <label className="field"><span>Sign-in email</span><input value={user?.email || ''} disabled /><small className="field-hint">Your sign-in email cannot be changed here.</small></label>
+          <label className="field"><span>Sign-in email</span><input value={user?.email || ''} disabled /><small className="field-hint">Change it in the Sign-in email section below.</small></label>
           <button className="button primary" disabled={profileBusy}>{profileBusy ? 'Saving…' : 'Save profile'}</button>
         </form>
 
@@ -89,10 +127,20 @@ export default function ProfilePage() {
           <div><p className="eyebrow">PASSWORD</p><h2>Change password</h2></div>
           {passwordError && <InlineError>{passwordError}</InlineError>}
           {passwordNotice && <div className="inline-banner success-banner" role="status">{passwordNotice}</div>}
-          <label className="field"><span>Current password</span><input type="password" autoComplete="current-password" value={passwords.currentPassword} onChange={(event) => setPasswords({ ...passwords, currentPassword: event.target.value })} /></label>
-          <label className="field"><span>New password</span><input type="password" autoComplete="new-password" value={passwords.newPassword} onChange={(event) => setPasswords({ ...passwords, newPassword: event.target.value })} /><FieldError>{fieldErrors.newPassword}</FieldError></label>
-          <label className="field"><span>Confirm new password</span><input type="password" autoComplete="new-password" value={passwords.confirmPassword} onChange={(event) => setPasswords({ ...passwords, confirmPassword: event.target.value })} /><FieldError>{fieldErrors.confirmPassword}</FieldError></label>
+          <label className="field"><span>Current password</span><PasswordInput autoComplete="current-password" value={passwords.currentPassword} onChange={(event) => setPasswords({ ...passwords, currentPassword: event.target.value })} /></label>
+          <label className="field"><span>New password</span><PasswordInput autoComplete="new-password" value={passwords.newPassword} onChange={(event) => setPasswords({ ...passwords, newPassword: event.target.value })} /><FieldError>{fieldErrors.newPassword}</FieldError></label>
+          <label className="field"><span>Confirm new password</span><PasswordInput autoComplete="new-password" value={passwords.confirmPassword} onChange={(event) => setPasswords({ ...passwords, confirmPassword: event.target.value })} /><FieldError>{fieldErrors.confirmPassword}</FieldError></label>
           <button className="button secondary" disabled={passwordBusy}>{passwordBusy ? 'Updating…' : 'Update password'}</button>
+        </form>
+
+        <form className="form-panel form-stack" onSubmit={changeEmail} noValidate>
+          <div><p className="eyebrow">SIGN-IN</p><h2>Sign-in email</h2></div>
+          {emailError && <InlineError>{emailError}</InlineError>}
+          {emailNotice && <div className="inline-banner success-banner" role="status">{emailNotice}</div>}
+          <label className="field"><span>Current sign-in email</span><input value={user?.email || ''} disabled /></label>
+          <label className="field"><span>New sign-in email</span><input type="email" autoComplete="email" placeholder="yourname@texas-trust.test" value={emailChange.newEmail} onChange={(event) => setEmailChange({ ...emailChange, newEmail: event.target.value })} /><small className="field-hint">Must end in @texas-trust.test. Real email addresses are not accepted.</small></label>
+          <label className="field"><span>Current password</span><PasswordInput autoComplete="current-password" value={emailChange.currentPassword} onChange={(event) => setEmailChange({ ...emailChange, currentPassword: event.target.value })} /></label>
+          <button className="button secondary" disabled={emailBusy}>{emailBusy ? 'Updating…' : 'Update sign-in email'}</button>
         </form>
       </div>
     </>

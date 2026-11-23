@@ -1,4 +1,24 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+
+/** Password input with a Show/Hide button so people can check what they typed. */
+export function PasswordInput(props) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span className="password-input">
+      <input {...props} type={visible ? 'text' : 'password'} autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+      <button
+        type="button"
+        className="password-toggle"
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        aria-pressed={visible}
+        onClick={() => setVisible((current) => !current)}
+      >
+        {visible ? 'Hide' : 'Show'}
+      </button>
+    </span>
+  );
+}
 
 export function formatMoney(value) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);

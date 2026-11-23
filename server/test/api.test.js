@@ -525,3 +525,29 @@ test('2FA started on one server instance can be completed on another (serverless
     await new Promise((resolve) => instanceB.close(resolve));
   }
 });
+
+test('sign-in email can be changed in settings and is then used to log in', async () => {
+  const email = 'email.change@texas-trust.test';
+  const password = 'Email!Change_2026';
+  const signup = await request('/auth/register', {
+    method: 'POST', body: { displayName: 'Email Change', email, password }, authenticated: false
+  });
+  assert.equal(signup.response.status, 201);
+  const userToken = await signIn(email, password);
+  const change = (body) => request('/profile/email', { method: 'PATCH', body, authToken: userToken });
+
+  assert.equal((await change({ newEmail: 'moved@texas-trust.test', currentPassword: 'wrong' })).response.status, 400);
+  assert.equal((await change({ newEmail: 'someone@gmail.com', currentPassword: password })).response.status, 400);
+  assert.equal((await change({ newEmail: email, currentPassword: password })).response.status, 400);
+  assert.equal((await change({ newEmail: 'ava.claire@texas-trust.test', currentPassword: password })).response.status, 409);
+
+  const moved = await change({ newEmail: '  Moved.Login@Texas-Trust.test ', currentPassword: password });
+  assert.equal(moved.response.status, 200);
+  assert.equal(moved.payload.profile.email, 'moved.login@texas-trust.test');
+
+  const oldLogin = await request('/auth/login', { method: 'POST', body: { email, password }, authenticated: false });
+  assert.equal(oldLogin.response.status, 401, 'the old email no longer signs in');
+  assert.ok(await signIn('moved.login@texas-trust.test', password), 'the new email signs in');
+  const profile = await request('/profile', { authToken: userToken });
+  assert.equal(profile.payload.profile.email, 'moved.login@texas-trust.test', 'existing session stays valid');
+});

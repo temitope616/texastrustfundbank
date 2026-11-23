@@ -14,7 +14,10 @@ class HttpError extends Error {
 }
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
-const PASSWORD_RULE = 'Use at least 12 characters with uppercase, lowercase, a number, and a symbol.';
+// Prototype accounts use fictional addresses only, so no real personal email is collected.
+const EMAIL_PATTERN = /^[a-z0-9._%+-]+@texas-trust\.test$/;
+const EMAIL_RULE = 'Use an email address ending in @texas-trust.test.';
+const PASSWORD_RULE ='Use at least 12 characters with uppercase, lowercase, a number, and a symbol.';
 
 function isStrongPassword(password) {
   return password.length >= 12 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
@@ -117,9 +120,7 @@ export function createApp(
     const email = String(request.body.email || '').trim().toLowerCase();
     const displayName = String(request.body.displayName || '').trim();
     const password = String(request.body.password || '');
-    if (!/^[a-z0-9._%+-]+@texas-trust\.test$/.test(email)) {
-      throw new HttpError(400, 'Use an email address ending in @texas-trust.test.');
-    }
+    if (!EMAIL_PATTERN.test(email)) throw new HttpError(400, EMAIL_RULE);
     if (displayName.length < 2 || displayName.length > 80) {
       throw new HttpError(400, 'Name must be between 2 and 80 characters.');
     }
@@ -283,6 +284,29 @@ export function createApp(
     await database.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
       .run(bcrypt.hashSync(newPassword, 10), request.userId);
     response.json({ message: 'Password updated.' });
+  });
+
+  api.patch('/profile/email', async (request, response) => {
+    const newEmail = String(request.body.newEmail || '').trim().toLowerCase();
+    const currentPassword = String(request.body.currentPassword || '');
+    const user = await database.prepare('SELECT email, password_hash FROM users WHERE id = ?').get(request.userId);
+    if (!user || !bcrypt.compareSync(currentPassword, user.password_hash)) {
+      throw new HttpError(400, 'Current password is incorrect.');
+    }
+    if (!EMAIL_PATTERN.test(newEmail)) throw new HttpError(400, EMAIL_RULE);
+    if (newEmail === user.email) throw new HttpError(400, 'That is already your sign-in email.');
+    if (await database.prepare('SELECT id FROM users WHERE email = ? AND id <> ?').get(newEmail, request.userId)) {
+      throw new HttpError(409, 'Another account already uses that email.');
+    }
+    try {
+      await database.prepare('UPDATE users SET email = ? WHERE id = ?').run(newEmail, request.userId);
+    } catch (error) {
+      if (/UNIQUE constraint failed: users\.email/.test(String(error?.message))) {
+        throw new HttpError(409, 'Another account already uses that email.');
+      }
+      throw error;
+    }
+    response.json({ profile: { email: newEmail }, message: 'Sign-in email updated. Use it the next time you sign in.' });
   });
 
   api.get('/accounts/:id/transactions', async (request, response) => {
