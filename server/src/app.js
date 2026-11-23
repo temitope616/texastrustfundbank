@@ -28,6 +28,9 @@ function parseDate(value) {
   if (Number.isNaN(date.valueOf()) || date.toISOString().slice(0, 10) !== value) {
     throw new HttpError(400, 'Choose a valid date.');
   }
+  // Allow one day of slack so a client's local "today" behind UTC is accepted.
+  const earliest = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (value < earliest) throw new HttpError(400, 'Choose today or a future date.');
   return value;
 }
 
@@ -69,6 +72,11 @@ export function createApp(database, jwtSecret = process.env.JWT_SECRET || 'local
 
   app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
   app.use(express.json({ limit: '1mb' }));
+  // Express 5 leaves req.body undefined when no JSON body is sent.
+  app.use((request, _response, next) => {
+    if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) request.body = {};
+    next();
+  });
 
   app.get('/api/health', (_request, response) => response.json({ status: 'ok' }));
 

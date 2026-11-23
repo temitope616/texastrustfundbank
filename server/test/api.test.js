@@ -14,6 +14,7 @@ let reviewerToken;
 let twoFactorCode;
 let payeeId;
 const logs = [];
+const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 async function request(path, { method = 'GET', body, authenticated = true, authToken = token } = {}) {
   const headers = { 'content-type': 'application/json' };
@@ -92,7 +93,7 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
 
   const transfer = await request('/transfers', {
     method: 'POST',
-    body: { fromAccountId: 1, toAccountId: 2, amount: 125, frequency: 'once', scheduledDate: '2026-11-23' }
+    body: { fromAccountId: 1, toAccountId: 2, amount: 125, frequency: 'once', scheduledDate: futureDate }
   });
   assert.equal(transfer.response.status, 201);
   assert.equal(transfer.payload.transfer.status, 'pending');
@@ -103,23 +104,23 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
 
   const sameAccount = await request('/transfers', {
     method: 'POST',
-    body: { fromAccountId: 1, toAccountId: 1, amount: 10, frequency: 'once', scheduledDate: '2026-11-23' }
+    body: { fromAccountId: 1, toAccountId: 1, amount: 10, frequency: 'once', scheduledDate: futureDate }
   });
   assert.equal(sameAccount.response.status, 400);
   const tooLarge = await request('/transfers', {
     method: 'POST',
-    body: { fromAccountId: 1, toAccountId: 2, amount: 9999, frequency: 'once', scheduledDate: '2026-11-23' }
+    body: { fromAccountId: 1, toAccountId: 2, amount: 9999, frequency: 'once', scheduledDate: futureDate }
   });
   assert.equal(tooLarge.response.status, 400);
   const subCent = await request('/transfers', {
     method: 'POST',
-    body: { fromAccountId: 1, toAccountId: 2, amount: 0.001, frequency: 'once', scheduledDate: '2026-11-23' }
+    body: { fromAccountId: 1, toAccountId: 2, amount: 0.001, frequency: 'once', scheduledDate: futureDate }
   });
   assert.equal(subCent.response.status, 400);
 
   const externalTransfer = await request('/transfers', {
     method: 'POST',
-    body: { fromAccountId: 1, payeeId, amount: 50, frequency: 'once', scheduledDate: '2026-11-23' }
+    body: { fromAccountId: 1, payeeId, amount: 50, frequency: 'once', scheduledDate: futureDate }
   });
   assert.equal(externalTransfer.payload.transfer.status, 'pending');
   assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 1').get().balance, 500);
@@ -145,7 +146,7 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
   assert.equal(newPayee.response.status, 201);
   const billPayment = await request('/billpay', {
     method: 'POST',
-    body: { accountId: 1, payeeId, amount: 15, frequency: 'once', scheduledDate: '2026-11-23' }
+    body: { accountId: 1, payeeId, amount: 15, frequency: 'once', scheduledDate: futureDate }
   });
   assert.equal(billPayment.response.status, 201);
   assert.equal(billPayment.payload.payment.status, 'pending');
@@ -212,7 +213,7 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
 
   const cancelCandidate = await request('/transfers', {
     method: 'POST',
-    body: { fromAccountId: 1, toAccountId: 2, amount: 30, frequency: 'once', scheduledDate: '2026-11-23' }
+    body: { fromAccountId: 1, toAccountId: 2, amount: 30, frequency: 'once', scheduledDate: futureDate }
   });
   const cancelled = await request(`/transfers/${cancelCandidate.payload.transfer.id}/cancel`, { method: 'PATCH', body: {} });
   assert.equal(cancelled.response.status, 200);
@@ -381,7 +382,7 @@ test('prototype signup creates a zero-balance view-only account', async () => {
 
   const withdrawal = await request('/transfers', {
     method: 'POST',
-    body: { fromAccountId: account.id, toAccountId: 1, amount: 1, frequency: 'once', scheduledDate: '2026-11-23' }
+    body: { fromAccountId: account.id, toAccountId: 1, amount: 1, frequency: 'once', scheduledDate: futureDate }
   });
   assert.equal(withdrawal.response.status, 403);
   assert.match(withdrawal.payload.error, /withdrawals.*disabled/i);
@@ -439,12 +440,12 @@ test('rejected money movement on view-only accounts changes no balances or histo
   const before = snapshot();
   const attempts = [
     ['/deposits', { accountId: viewOnly, amount: 50, frontImageName: 'f.jpg', backImageName: 'b.jpg' }],
-    ['/transfers', { fromAccountId: viewOnly, payeeId, amount: 1, frequency: 'once', scheduledDate: '2026-12-01' }],
-    ['/billpay', { accountId: viewOnly, payeeId, amount: 1, frequency: 'once', scheduledDate: '2026-12-01' }],
+    ['/transfers', { fromAccountId: viewOnly, payeeId, amount: 1, frequency: 'once', scheduledDate: futureDate }],
+    ['/billpay', { accountId: viewOnly, payeeId, amount: 1, frequency: 'once', scheduledDate: futureDate }],
     // Cross-user attempts against Ava's seeded account must also be refused.
     ['/deposits', { accountId: avaChecking, amount: 50, frontImageName: 'f.jpg', backImageName: 'b.jpg' }],
-    ['/transfers', { fromAccountId: avaChecking, toAccountId: viewOnly, amount: 1, frequency: 'once', scheduledDate: '2026-12-01' }],
-    ['/billpay', { accountId: avaChecking, payeeId, amount: 1, frequency: 'once', scheduledDate: '2026-12-01' }]
+    ['/transfers', { fromAccountId: avaChecking, toAccountId: viewOnly, amount: 1, frequency: 'once', scheduledDate: futureDate }],
+    ['/billpay', { accountId: avaChecking, payeeId, amount: 1, frequency: 'once', scheduledDate: futureDate }]
   ];
   for (const [path, body] of attempts) {
     const result = await request(path, { method: 'POST', body });
@@ -462,4 +463,25 @@ test('rejected money movement on view-only accounts changes no balances or histo
   const hash = database.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId).password_hash;
   assert.ok(hash.startsWith('$2') && !hash.includes(password));
   assert.equal(await signIn('ava.claire@texas-trust.test', 'Violet!Harbor84_Copper').then(Boolean), true);
+});
+
+test('requests without a JSON body return validation errors, not 500', async () => {
+  const login = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST' });
+  assert.equal(login.status, 401);
+  const register = await fetch(`${baseUrl}/api/auth/register`, { method: 'POST' });
+  assert.equal(register.status, 400);
+  const cancel = await fetch(`${baseUrl}/api/transfers/1/cancel`, {
+    method: 'PATCH',
+    headers: { authorization: `Bearer ${token}` }
+  });
+  assert.notEqual(cancel.status, 500);
+});
+
+test('transfers scheduled in the past are rejected', async () => {
+  const { response, payload } = await request('/transfers', {
+    method: 'POST',
+    body: { fromAccountId: 1, toAccountId: 2, amount: 1, frequency: 'once', scheduledDate: '2020-01-01' }
+  });
+  assert.equal(response.status, 400);
+  assert.equal(payload.error, 'Choose today or a future date.');
 });

@@ -6,8 +6,13 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('texas-trust-prototype-token'));
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('texas-trust-prototype-user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = localStorage.getItem('texas-trust-prototype-user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      localStorage.removeItem('texas-trust-prototype-user');
+      return null;
+    }
   });
 
   function storeSession(result) {

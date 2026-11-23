@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../api.js';
-import { AccountSelect, FieldError, InlineError, PageHeading } from '../components/BankingUI.jsx';
+import { AccountSelect, FieldError, InlineError, PageHeading, localDate } from '../components/BankingUI.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useBanking } from '../contexts/BankingContext.jsx';
 
-const today = new Date().toISOString().slice(0, 10);
-
 export default function BillPayPage() {
+  const today = localDate();
   const { token } = useAuth();
   const { accounts, refreshAccounts } = useBanking();
   const [payees, setPayees] = useState([]);
@@ -20,6 +19,7 @@ export default function BillPayPage() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [addingPayee, setAddingPayee] = useState(false);
 
   async function loadPayees() {
     const result = await apiRequest('/payees', { token });
@@ -38,6 +38,7 @@ export default function BillPayPage() {
     setError('');
     setNotice('');
     if (Object.keys(errors).length) return;
+    setAddingPayee(true);
     try {
       const result = await apiRequest('/payees', { token, method: 'POST', body: newPayee });
       setPayees((items) => [...items, result.payee].sort((a, b) => a.name.localeCompare(b.name)));
@@ -46,6 +47,8 @@ export default function BillPayPage() {
       setNotice('Payee added.');
     } catch (requestError) {
       setError(requestError.message);
+    } finally {
+      setAddingPayee(false);
     }
   }
 
@@ -56,6 +59,7 @@ export default function BillPayPage() {
     if (!payeeId) errors.payeeId = 'Choose a payee.';
     if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) errors.amount = 'Enter an amount greater than zero.';
     if (!date) errors.date = 'Choose a payment date.';
+    else if (date < today) errors.date = 'Choose today or a future date.';
     setFormErrors(errors);
     setError('');
     setNotice('');
@@ -95,7 +99,7 @@ export default function BillPayPage() {
           <label className="field"><span>Payee name</span><input value={newPayee.name} onChange={(event) => setNewPayee({ ...newPayee, name: event.target.value })} /><FieldError>{formErrors.name}</FieldError></label>
           <label className="field"><span>Account last four</span><input inputMode="numeric" maxLength={4} value={newPayee.accountLast4} onChange={(event) => setNewPayee({ ...newPayee, accountLast4: event.target.value.replace(/\D/g, '').slice(0, 4) })} /><FieldError>{formErrors.accountLast4}</FieldError></label>
           <label className="field"><span>Bank name</span><input value={newPayee.bankName} onChange={(event) => setNewPayee({ ...newPayee, bankName: event.target.value })} /><FieldError>{formErrors.bankName}</FieldError></label>
-          <button className="button secondary">Add payee</button>
+          <button className="button secondary" disabled={addingPayee}>{addingPayee ? 'Adding…' : 'Add payee'}</button>
         </form>
       </div>
     </>

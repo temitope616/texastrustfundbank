@@ -8,6 +8,10 @@ export async function apiRequest(path, { token, ...options } = {}) {
 
   const response = await fetch(`/api${path}`, { ...options, headers });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'Something went wrong. Please try again.');
+  if (!response.ok) {
+    const error = new Error(payload.error || 'Something went wrong. Please try again.');
+    error.status = response.status;
+    throw error;
+  }
   return payload;
 }

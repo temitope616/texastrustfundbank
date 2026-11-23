@@ -4,6 +4,12 @@ export function formatMoney(value) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
 }
 
+// YYYY-MM-DD in the user's local time zone (toISOString() would give the UTC date).
+export function localDate(date = new Date()) {
+  const pad = (number) => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function formatDate(value) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     .format(new Date(`${value}T00:00:00`));

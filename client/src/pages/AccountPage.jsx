@@ -16,9 +16,11 @@ async function fetchAllTransactions(accountId, token) {
 export default function AccountPage() {
   const { id } = useParams();
   const { token } = useAuth();
-  const { accounts } = useBanking();
+  const { accounts, loading } = useBanking();
   const account = accounts.find((item) => String(item.id) === id);
   const [page, setPage] = useState(1);
+
+  useEffect(() => { setPage(1); }, [id]);
   const [result, setResult] = useState({ transactions: [], totalPages: 1, total: 0 });
   const [flowSummary, setFlowSummary] = useState(null);
   const [error, setError] = useState('');
@@ -77,7 +79,7 @@ export default function AccountPage() {
     }
   }
 
-  if (!account) return <div className="empty-state">Account not found.</div>;
+  if (!account) return <div className="empty-state">{loading ? 'Loading account…' : 'Account not found.'}</div>;
 
   return (
     <>

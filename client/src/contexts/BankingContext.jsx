@@ -22,7 +22,7 @@ export function BankingProvider({ children }) {
       setAccounts(result.accounts);
     } catch (requestError) {
       setError(requestError.message);
-      if (requestError.message.includes('session')) logout();
+      if (requestError.status === 401) logout();
     } finally {
       setLoading(false);
     }
