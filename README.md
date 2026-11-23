@@ -34,15 +34,17 @@ Each new account starts with 2FA enabled. Users can change their display name an
 
 Demo profile: Ava Claire. Checking account ending `4821` is seeded at `$75,730.75` with 40 dated transactions showing deposits and spending across 18 months.
 
-After submitting the password, enter the six-digit code. In this prototype no message is sent; the code is printed in the server terminal. The code is generated for each sign-in and expires after five minutes.
+After submitting the password, enter the six-digit code. In this prototype no message is sent; the code is shown on the verification screen and printed in the server terminal (set `HIDE_DEMO_2FA_CODE=true` to hide it from the screen). The code is generated for each sign-in and expires after five minutes.
 
-The SQLite database is created at `server/data/bank.sqlite`. Seed data is added only when the demo user is not already present; remove that local database file to start with a fresh demo dataset.
+Locally, the SQLite database is created at `server/data/bank.sqlite`. When `TURSO_DATABASE_URL` is set, the app uses that Turso (libSQL) database instead. Seed data is added only when the demo user is not already present; remove that local database file to start with a fresh demo dataset.
 
 ## Project layout
 
 - `client/` - React, Vite, Tailwind CSS, and React Router application
 - `server/` - Express API and SQLite data layer
-- `server/src/db/schema.sql` - SQLite schema
+- `server/src/db/schema.js` - SQLite schema (applied automatically on startup)
+- `server/src/serverless.js` - serverless request handler
+- `client/api/index.js` - Vercel function that serves `/api/*` with the Express API
 - `server/src/seed.js` - Demo user and mock data seed
 
 ## Verification
@@ -55,3 +57,21 @@ npm run build -w client
 ```
 
 All activity is local mock data. Transfer and bill-payment requests stay pending or receive simulated review outcomes and never change balances. External recipient details are not verified; the app does not connect to financial institutions, send real payments, or upload check images. Do not enter real bank account or routing numbers.
+
+## Deploying to Vercel with Turso
+
+The Vercel project uses `client` as its Root Directory. Vite builds the frontend, and `client/api/index.js` runs the Express API as a serverless function. `client/vercel.json` sends `/api/*` to that function and every other path to the single-page app.
+
+Set these environment variables in Vercel (Project → Settings → Environment Variables), then redeploy:
+
+| Variable | Value |
+| --- | --- |
+| `TURSO_DATABASE_URL` | Your database URL, e.g. `libsql://<db>-<org>.turso.io` |
+| `TURSO_AUTH_TOKEN` | A Turso database token |
+| `JWT_SECRET` | Recommended: a long random string used to sign sessions |
+
+The schema is created automatically on the first request. To add the demo users to the Turso database, run the seed locally with the same values:
+
+```bash
+TURSO_DATABASE_URL=libsql://... TURSO_AUTH_TOKEN=... npm run seed
+```

@@ -1,12 +1,9 @@
-import { mkdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { openDatabase } from './db.js';
 
-const dataDirectory = fileURLToPath(new URL('../data/', import.meta.url));
-mkdirSync(dataDirectory, { recursive: true });
-
-const database = openDatabase();
+// Seeds the database configured by TURSO_DATABASE_URL / TURSO_AUTH_TOKEN, or the local file.
+const database = await openDatabase();
 const email = 'ava.claire@texas-trust.test';
 const previousEmail = 'ava.claire@boa-prototype.test';
 const olderEmail = 'ava.claire@northbank.test';
@@ -16,32 +13,40 @@ const reviewerEmail = 'reviewer@texas-trust.test';
 const previousReviewerEmail = 'reviewer@boa-prototype.test';
 const olderReviewerEmail = 'reviewer@northbank.test';
 const reviewerPassword = 'ReviewOnly!91_Marble';
-const existingUser = database.prepare(
+const existingUser = await database.prepare(
   'SELECT id, email FROM users WHERE email IN (?, ?, ?, ?) ORDER BY CASE WHEN email = ? THEN 0 ELSE 1 END LIMIT 1'
 ).get(email, previousEmail, olderEmail, legacyEmail, email);
-const existingReviewer = database.prepare(
+const existingReviewer = await database.prepare(
   'SELECT id, email FROM users WHERE email IN (?, ?, ?) ORDER BY CASE WHEN email = ? THEN 0 ELSE 1 END LIMIT 1'
 ).get(reviewerEmail, previousReviewerEmail, olderReviewerEmail, reviewerEmail);
-const seedVersion = database.prepare(
+const seedVersion = (await database.prepare(
   'SELECT value FROM app_metadata WHERE key = ?'
-).get('demo-seed-version')?.value;
+).get('demo-seed-version'))?.value;
+
+async function upsertReviewer(db) {
+  if (existingReviewer) {
+    await db.prepare(
+      'UPDATE users SET email = ?, display_name = ?, role = ?, password_hash = ? WHERE id = ?'
+    ).run(reviewerEmail, 'Prototype Reviewer', 'reviewer', bcrypt.hashSync(reviewerPassword, 10), existingReviewer.id);
+  } else {
+    await db.prepare(
+      'INSERT INTO users (email, display_name, role, password_hash, phone) VALUES (?, ?, ?, ?, ?)'
+    ).run(reviewerEmail, 'Prototype Reviewer', 'reviewer', bcrypt.hashSync(reviewerPassword, 10), '555-010-0100');
+  }
+}
+
+async function setSeedVersion(db) {
+  await db.prepare(
+    'INSERT INTO app_metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+  ).run('demo-seed-version', 'ava-claire-5');
+}
 
 if (existingUser && ['ava-claire-3', 'ava-claire-4'].includes(seedVersion)) {
-  database.transaction(() => {
-    database.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, existingUser.id);
-    if (existingReviewer) {
-      database.prepare(
-        'UPDATE users SET email = ?, display_name = ?, role = ?, password_hash = ? WHERE id = ?'
-      ).run(reviewerEmail, 'Prototype Reviewer', 'reviewer', bcrypt.hashSync(reviewerPassword, 10), existingReviewer.id);
-    } else {
-      database.prepare(
-        'INSERT INTO users (email, display_name, role, password_hash, phone) VALUES (?, ?, ?, ?, ?)'
-      ).run(reviewerEmail, 'Prototype Reviewer', 'reviewer', bcrypt.hashSync(reviewerPassword, 10), '555-010-0100');
-    }
-    database.prepare(
-      'INSERT INTO app_metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-    ).run('demo-seed-version', 'ava-claire-5');
-  })();
+  await database.transaction(async (db) => {
+    await db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, existingUser.id);
+    await upsertReviewer(db);
+    await setSeedVersion(db);
+  });
   console.log('Texas trust prototype identities updated; account history preserved.');
   console.log(`Login: ${email} / ${password}`);
   console.log(`Reviewer login: ${reviewerEmail} / ${reviewerPassword}`);
@@ -89,66 +94,62 @@ const savingsTemplates = [
   ['Quarterly interest credit', 21.22, 'credit', 'Interest']
 ];
 
-const transaction = database.transaction(() => {
+const seed = async (db) => {
   const userId = existingUser
     ? existingUser.id
-    : Number(database.prepare(
+    : (await db.prepare(
       'INSERT INTO users (email, display_name, password_hash, phone) VALUES (?, ?, ?, ?)'
-    ).run(email, 'Ava Claire', bcrypt.hashSync(password, 10), '555-010-4821').lastInsertRowid);
-  database.prepare(
+    ).run(email, 'Ava Claire', bcrypt.hashSync(password, 10), '555-010-4821')).lastInsertRowid;
+  await db.prepare(
     'UPDATE users SET email = ?, display_name = ?, password_hash = ? WHERE id = ?'
   ).run(email, 'Ava Claire', bcrypt.hashSync(password, 10), userId);
-  if (existingReviewer) {
-    database.prepare(
-      'UPDATE users SET email = ?, display_name = ?, role = ?, password_hash = ? WHERE id = ?'
-    ).run(reviewerEmail, 'Prototype Reviewer', 'reviewer', bcrypt.hashSync(reviewerPassword, 10), existingReviewer.id);
-  } else {
-    database.prepare(
-      'INSERT INTO users (email, display_name, role, password_hash, phone) VALUES (?, ?, ?, ?, ?)'
-    ).run(reviewerEmail, 'Prototype Reviewer', 'reviewer', bcrypt.hashSync(reviewerPassword, 10), '555-010-0100');
-  }
+  await upsertReviewer(db);
 
-  const insertAccount = database.prepare(
+  const insertAccount = db.prepare(
     'INSERT INTO accounts (user_id, type, last4, balance, available_balance) VALUES (?, ?, ?, ?, ?)'
   );
-  const existingAccounts = database.prepare(
+  const existingAccounts = await db.prepare(
     'SELECT id, type FROM accounts WHERE user_id = ?'
   ).all(userId);
   const existingChecking = existingAccounts.find((account) => account.type === 'checking');
   const existingSavings = existingAccounts.find((account) => account.type === 'savings');
   const checkingId = existingChecking
     ? existingChecking.id
-    : Number(insertAccount.run(userId, 'checking', '4821', 75730.75, 75730.75).lastInsertRowid);
+    : (await insertAccount.run(userId, 'checking', '4821', 75730.75, 75730.75)).lastInsertRowid;
   const savingsId = existingSavings
     ? existingSavings.id
-    : Number(insertAccount.run(userId, 'savings', '9037', 12800.00, 12800.00).lastInsertRowid);
-  database.prepare(
+    : (await insertAccount.run(userId, 'savings', '9037', 12800.00, 12800.00)).lastInsertRowid;
+  await db.prepare(
     'UPDATE accounts SET balance = ?, available_balance = ? WHERE id = ?'
   ).run(75730.75, 75730.75, checkingId);
-  database.prepare(
+  // Remove dependent rows explicitly (foreign-key cascades are not guaranteed on every connection).
+  await db.prepare(
+    'DELETE FROM transfer_events WHERE transfer_id IN (SELECT id FROM transfers WHERE from_account_id = ? OR to_account_id = ?)'
+  ).run(checkingId, checkingId);
+  await db.prepare(
     'DELETE FROM transfers WHERE from_account_id = ? OR to_account_id = ?'
   ).run(checkingId, checkingId);
-  database.prepare('DELETE FROM transactions WHERE account_id = ?').run(checkingId);
+  await db.prepare('DELETE FROM transactions WHERE account_id = ?').run(checkingId);
 
-  const insertTransaction = database.prepare(
+  const insertTransaction = db.prepare(
     'INSERT INTO transactions (account_id, date, description, amount, type, balance_after, category) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
 
-  const seedAccountTransactions = (accountId, templates, endingBalance, offsetDays) => {
+  const seedAccountTransactions = async (accountId, templates, endingBalance, offsetDays) => {
     const netChange = templates.reduce((total, [, amount, type]) => (
       total + (type === 'credit' ? amount : -amount)
     ), 0);
     let runningBalance = endingBalance - netChange;
     const today = new Date();
 
-    templates.forEach(([description, amount, type, category], index) => {
+    for (const [index, [description, amount, type, category]] of templates.entries()) {
       const date = new Date(today);
       const interval = templates.length > 1
         ? (templates.length - index - 1) * 18 * 30.4375 / (templates.length - 1)
         : 0;
       date.setDate(today.getDate() - Math.round(interval) - offsetDays);
       runningBalance += type === 'credit' ? amount : -amount;
-      insertTransaction.run(
+      await insertTransaction.run(
         accountId,
         date.toISOString().slice(0, 10),
         description,
@@ -157,33 +158,31 @@ const transaction = database.transaction(() => {
         Number(runningBalance.toFixed(2)),
         category
       );
-    });
+    }
   };
 
-  seedAccountTransactions(checkingId, transactionTemplates, 75730.75, 0);
-  if (!existingSavings) seedAccountTransactions(savingsId, savingsTemplates, 12800.00, 7);
+  await seedAccountTransactions(checkingId, transactionTemplates, 75730.75, 0);
+  if (!existingSavings) await seedAccountTransactions(savingsId, savingsTemplates, 12800.00, 7);
 
   if (!existingUser) {
-    const insertCard = database.prepare(
+    const insertCard = db.prepare(
       'INSERT INTO cards (account_id, last4, status, expiry_date) VALUES (?, ?, ?, ?)'
     );
-    insertCard.run(checkingId, '1842', 'active', '2028-08-31');
-    insertCard.run(checkingId, '7716', 'locked', '2027-11-30');
+    await insertCard.run(checkingId, '1842', 'active', '2028-08-31');
+    await insertCard.run(checkingId, '7716', 'locked', '2027-11-30');
 
-    const insertPayee = database.prepare(
+    const insertPayee = db.prepare(
       'INSERT INTO payees (user_id, name, account_last4, bank_name) VALUES (?, ?, ?, ?)'
     );
-    insertPayee.run(userId, 'Jordan Lee', '2048', 'Northstar Credit Union');
-    insertPayee.run(userId, 'Cedar Water & Power', '6612', 'Cedar Community Bank');
+    await insertPayee.run(userId, 'Jordan Lee', '2048', 'Northstar Credit Union');
+    await insertPayee.run(userId, 'Cedar Water & Power', '6612', 'Cedar Community Bank');
   }
 
-  database.prepare(
-    'INSERT INTO app_metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-  ).run('demo-seed-version', 'ava-claire-5');
-});
+  await setSeedVersion(db);
+};
 
 try {
-  transaction();
+  await database.transaction(seed);
   console.log('Demo data seeded successfully.');
   console.log(`Login: ${email} / ${password}`);
   console.log(`Reviewer login: ${reviewerEmail} / ${reviewerPassword}`);

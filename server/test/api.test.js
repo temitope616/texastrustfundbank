@@ -2,11 +2,15 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import test, { after, before } from 'node:test';
 import bcrypt from 'bcryptjs';
-import Database from 'better-sqlite3';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createApp } from '../src/app.js';
-import { initializeDatabase } from '../src/db.js';
+import { openDatabase } from '../src/db.js';
 
 let database;
+let databaseDirectory;
 let server;
 let baseUrl;
 let token;
@@ -29,26 +33,28 @@ async function request(path, { method = 'GET', body, authenticated = true, authT
 }
 
 before(async () => {
-  database = initializeDatabase(new Database(':memory:'));
-  const user = database.prepare(
+  // A temporary file: libSQL in-memory databases do not survive across transactions.
+  databaseDirectory = mkdtempSync(path.join(tmpdir(), 'texas-trust-test-'));
+  database = await openDatabase({ url: pathToFileURL(path.join(databaseDirectory, 'test.sqlite')).href });
+  const user = (await database.prepare(
     'INSERT INTO users (email, display_name, password_hash, phone) VALUES (?, ?, ?, ?)'
-  ).run('ava.claire@texas-trust.test', 'Ava Claire', bcrypt.hashSync('Violet!Harbor84_Copper', 4), '555-010-4821');
+  ).run('ava.claire@texas-trust.test', 'Ava Claire', bcrypt.hashSync('Violet!Harbor84_Copper', 4), '555-010-4821'));
   const userId = Number(user.lastInsertRowid);
-  database.prepare(
+  (await database.prepare(
     'INSERT INTO users (email, display_name, role, password_hash, phone) VALUES (?, ?, ?, ?, ?)'
-  ).run('reviewer@texas-trust.test', 'Prototype Reviewer', 'reviewer', bcrypt.hashSync('ReviewOnly!91_Marble', 4), '555-010-0100');
-  const checking = database.prepare(
+  ).run('reviewer@texas-trust.test', 'Prototype Reviewer', 'reviewer', bcrypt.hashSync('ReviewOnly!91_Marble', 4), '555-010-0100'));
+  const checking = (await database.prepare(
     'INSERT INTO accounts (user_id, type, last4, balance, available_balance) VALUES (?, ?, ?, ?, ?)'
-  ).run(userId, 'checking', '4821', 500, 500);
-  database.prepare(
+  ).run(userId, 'checking', '4821', 500, 500));
+  (await database.prepare(
     'INSERT INTO accounts (user_id, type, last4, balance, available_balance) VALUES (?, ?, ?, ?, ?)'
-  ).run(userId, 'savings', '9037', 1000, 1000);
-  database.prepare(
+  ).run(userId, 'savings', '9037', 1000, 1000));
+  (await database.prepare(
     'INSERT INTO cards (account_id, last4, status, expiry_date) VALUES (?, ?, ?, ?)'
-  ).run(Number(checking.lastInsertRowid), '1842', 'active', '2028-08-31');
-  const payee = database.prepare(
+  ).run(Number(checking.lastInsertRowid), '1842', 'active', '2028-08-31'));
+  const payee = (await database.prepare(
     'INSERT INTO payees (user_id, name, account_last4, bank_name) VALUES (?, ?, ?, ?)'
-  ).run(userId, 'Jordan Lee', '2048', 'Northstar Credit Union');
+  ).run(userId, 'Jordan Lee', '2048', 'Northstar Credit Union'));
   payeeId = Number(payee.lastInsertRowid);
 
   server = createApp(database, 'test-secret').listen(0);
@@ -59,6 +65,10 @@ before(async () => {
 after(async () => {
   if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   database?.close();
+  // Best effort: Windows may still hold the file handle briefly after close().
+  try {
+    if (databaseDirectory) rmSync(databaseDirectory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  } catch {}
 });
 
 test('login, 2FA, account transfers, and supporting banking endpoints', async () => {
@@ -98,9 +108,9 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
   assert.equal(transfer.response.status, 201);
   assert.equal(transfer.payload.transfer.status, 'pending');
   assert.match(transfer.payload.transfer.message, /No funds have moved/);
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 1').get().balance, 500);
-  assert.equal(database.prepare('SELECT available_balance FROM accounts WHERE id = 1').get().available_balance, 500);
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 2').get().balance, 1000);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 1').get()).balance, 500);
+  assert.equal((await database.prepare('SELECT available_balance FROM accounts WHERE id = 1').get()).available_balance, 500);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 2').get()).balance, 1000);
 
   const sameAccount = await request('/transfers', {
     method: 'POST',
@@ -123,8 +133,8 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
     body: { fromAccountId: 1, payeeId, amount: 50, frequency: 'once', scheduledDate: futureDate }
   });
   assert.equal(externalTransfer.payload.transfer.status, 'pending');
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 1').get().balance, 500);
-  assert.equal(database.prepare('SELECT available_balance FROM accounts WHERE id = 1').get().available_balance, 500);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 1').get()).balance, 500);
+  assert.equal((await database.prepare('SELECT available_balance FROM accounts WHERE id = 1').get()).available_balance, 500);
 
   const deposit = await request('/deposits', {
     method: 'POST',
@@ -132,7 +142,7 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
   });
   assert.equal(deposit.response.status, 201);
   assert.equal(deposit.payload.deposit.status, 'pending');
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 1').get().balance, 500);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 1').get()).balance, 500);
 
   const cards = await request('/cards');
   assert.equal(cards.payload.cards.length, 1);
@@ -150,8 +160,8 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
   });
   assert.equal(billPayment.response.status, 201);
   assert.equal(billPayment.payload.payment.status, 'pending');
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 1').get().balance, 500);
-  assert.equal(database.prepare('SELECT available_balance FROM accounts WHERE id = 1').get().available_balance, 500);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 1').get()).balance, 500);
+  assert.equal((await database.prepare('SELECT available_balance FROM accounts WHERE id = 1').get()).available_balance, 500);
 
   const requests = await request('/transfers');
   assert.equal(requests.payload.transfers.length, 3);
@@ -191,8 +201,8 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
   });
   assert.equal(approved.response.status, 200);
   assert.equal(approved.payload.transfer.status, 'approved');
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 1').get().balance, 500);
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 2').get().balance, 1000);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 1').get()).balance, 500);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 2').get()).balance, 1000);
 
   const rejected = await request(`/review/transfers/${externalTransfer.payload.transfer.id}`, {
     method: 'PATCH',
@@ -218,16 +228,16 @@ test('login, 2FA, account transfers, and supporting banking endpoints', async ()
   const cancelled = await request(`/transfers/${cancelCandidate.payload.transfer.id}/cancel`, { method: 'PATCH', body: {} });
   assert.equal(cancelled.response.status, 200);
   assert.equal(cancelled.payload.transfer.status, 'cancelled');
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 1').get().balance, 500);
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = 2').get().balance, 1000);
-  assert.equal(database.prepare(`
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 1').get()).balance, 500);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = 2').get()).balance, 1000);
+  assert.equal((await database.prepare(`
     SELECT status FROM transactions
     WHERE id = (SELECT transaction_id FROM transfers WHERE id = ?)
-  `).get(cancelCandidate.payload.transfer.id).status, 'failed');
-  assert.equal(database.prepare(`
+  `).get(cancelCandidate.payload.transfer.id)).status, 'failed');
+  assert.equal((await database.prepare(`
     SELECT status FROM transactions
     WHERE id = (SELECT destination_transaction_id FROM transfers WHERE id = ?)
-  `).get(cancelCandidate.payload.transfer.id).status, 'failed');
+  `).get(cancelCandidate.payload.transfer.id)).status, 'failed');
 
   const cancelledHistory = await request(`/transfers/${cancelCandidate.payload.transfer.id}/history`);
   assert.deepEqual(cancelledHistory.payload.events.map((event) => event.eventType), ['submitted', 'cancelled']);
@@ -280,15 +290,15 @@ test('prototype signup creates a zero-balance view-only account', async () => {
   });
   assert.equal(duplicate.response.status, 409);
 
-  const user = database.prepare('SELECT id FROM users WHERE email = ?').get('new.user@texas-trust.test');
-  const account = database.prepare('SELECT id, balance, available_balance, status FROM accounts WHERE user_id = ?').get(user.id);
+  const user = (await database.prepare('SELECT id FROM users WHERE email = ?').get('new.user@texas-trust.test'));
+  const account = (await database.prepare('SELECT id, balance, available_balance, status FROM accounts WHERE user_id = ?').get(user.id));
   assert.deepEqual(account, {
     id: account.id,
     balance: 0,
     available_balance: 0,
     status: 'view-only'
   });
-  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM transactions WHERE account_id = ?').get(account.id).count, 0);
+  assert.equal((await database.prepare('SELECT COUNT(*) AS count FROM transactions WHERE account_id = ?').get(account.id)).count, 0);
 
   const capturedLogs = logs.length;
   const originalInfo = console.info;
@@ -386,8 +396,8 @@ test('prototype signup creates a zero-balance view-only account', async () => {
   });
   assert.equal(withdrawal.response.status, 403);
   assert.match(withdrawal.payload.error, /withdrawals.*disabled/i);
-  assert.equal(database.prepare('SELECT balance FROM accounts WHERE id = ?').get(account.id).balance, 0);
-  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM transactions WHERE account_id = ?').get(account.id).count, 0);
+  assert.equal((await database.prepare('SELECT balance FROM accounts WHERE id = ?').get(account.id)).balance, 0);
+  assert.equal((await database.prepare('SELECT COUNT(*) AS count FROM transactions WHERE account_id = ?').get(account.id)).count, 0);
 });
 
 async function signIn(email, password) {
@@ -405,10 +415,10 @@ async function signIn(email, password) {
 }
 
 test('rejected money movement on view-only accounts changes no balances or history', async () => {
-  const snapshot = () => ({
-    accounts: database.prepare('SELECT id, balance, available_balance, status FROM accounts ORDER BY id').all(),
-    transactions: database.prepare('SELECT COUNT(*) AS count FROM transactions').get().count,
-    transfers: database.prepare('SELECT COUNT(*) AS count FROM transfers').get().count
+  const snapshot = async () => ({
+    accounts: (await database.prepare('SELECT id, balance, available_balance, status FROM accounts ORDER BY id').all()),
+    transactions: (await database.prepare('SELECT COUNT(*) AS count FROM transactions').get()).count,
+    transfers: (await database.prepare('SELECT COUNT(*) AS count FROM transfers').get()).count
   });
 
   const email = 'zero.balance@texas-trust.test';
@@ -417,10 +427,10 @@ test('rejected money movement on view-only accounts changes no balances or histo
     method: 'POST', body: { displayName: 'Zero Balance', email, password }, authenticated: false
   });
   assert.equal(signup.response.status, 201);
-  const userId = database.prepare('SELECT id FROM users WHERE email = ?').get(email).id;
-  const viewOnly = database.prepare('SELECT id FROM accounts WHERE user_id = ?').get(userId).id;
-  const ava = database.prepare("SELECT id FROM users WHERE email = 'ava.claire@texas-trust.test'").get().id;
-  const avaChecking = database.prepare("SELECT id FROM accounts WHERE user_id = ? AND type = 'checking'").get(ava).id;
+  const userId = (await database.prepare('SELECT id FROM users WHERE email = ?').get(email)).id;
+  const viewOnly = (await database.prepare('SELECT id FROM accounts WHERE user_id = ?').get(userId)).id;
+  const ava = (await database.prepare("SELECT id FROM users WHERE email = 'ava.claire@texas-trust.test'").get()).id;
+  const avaChecking = (await database.prepare("SELECT id FROM accounts WHERE user_id = ? AND type = 'checking'").get(ava)).id;
 
   // Each 2FA sign-in gets a different code; a code from one challenge never works for another.
   const first = await signIn(email, password);
@@ -437,7 +447,7 @@ test('rejected money movement on view-only accounts changes no balances or histo
   assert.equal(stale.response.status, 401);
 
   token = second;
-  const before = snapshot();
+  const before = await snapshot();
   const attempts = [
     ['/deposits', { accountId: viewOnly, amount: 50, frontImageName: 'f.jpg', backImageName: 'b.jpg' }],
     ['/transfers', { fromAccountId: viewOnly, payeeId, amount: 1, frequency: 'once', scheduledDate: futureDate }],
@@ -450,7 +460,7 @@ test('rejected money movement on view-only accounts changes no balances or histo
   for (const [path, body] of attempts) {
     const result = await request(path, { method: 'POST', body });
     assert.ok([403, 404].includes(result.response.status), `${path} returned ${result.response.status}`);
-    assert.deepEqual(snapshot(), before, `${path} changed data`);
+    assert.deepEqual(await snapshot(), before, `${path} changed data`);
   }
 
   // Password change guards.
@@ -460,7 +470,7 @@ test('rejected money movement on view-only accounts changes no balances or histo
   assert.equal(weakNew.response.status, 400);
   const reused = await request('/profile/password', { method: 'PATCH', body: { currentPassword: password, newPassword: password } });
   assert.equal(reused.response.status, 400);
-  const hash = database.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId).password_hash;
+  const hash = (await database.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId)).password_hash;
   assert.ok(hash.startsWith('$2') && !hash.includes(password));
   assert.equal(await signIn('ava.claire@texas-trust.test', 'Violet!Harbor84_Copper').then(Boolean), true);
 });
@@ -484,4 +494,34 @@ test('transfers scheduled in the past are rejected', async () => {
   });
   assert.equal(response.status, 400);
   assert.equal(payload.error, 'Choose today or a future date.');
+});
+
+test('2FA started on one server instance can be completed on another (serverless)', async () => {
+  const instanceB = createApp(database, 'test-secret').listen(0);
+  await once(instanceB, 'listening');
+  try {
+    const login = await request('/auth/login', {
+      method: 'POST',
+      body: { email: 'ava.claire@texas-trust.test', password: 'Violet!Harbor84_Copper' },
+      authenticated: false
+    });
+    assert.equal(login.response.status, 200);
+    assert.equal(login.payload.requiresTwoFactor, true);
+    assert.match(login.payload.demoCode, /^\d{6}$/, 'hosted demo shows the code because no SMS is sent');
+
+    const verifyOnB = await fetch(`http://127.0.0.1:${instanceB.address().port}/api/auth/verify-2fa`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ challengeId: login.payload.challengeId, code: login.payload.demoCode })
+    });
+    assert.equal(verifyOnB.status, 200);
+    assert.ok((await verifyOnB.json()).token);
+
+    const replay = await request('/auth/verify-2fa', {
+      method: 'POST', body: { challengeId: login.payload.challengeId, code: login.payload.demoCode }, authenticated: false
+    });
+    assert.equal(replay.response.status, 401, 'a used challenge cannot be replayed');
+  } finally {
+    await new Promise((resolve) => instanceB.close(resolve));
+  }
 });

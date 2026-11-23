@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [registration, setRegistration] = useState({ displayName: '', email: '', password: '', confirmPassword: '' });
   const [challengeId, setChallengeId] = useState('');
+  const [demoCode, setDemoCode] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -35,6 +36,8 @@ export default function LoginPage() {
         return;
       }
       setChallengeId(result.challengeId);
+      setDemoCode(result.demoCode || '');
+      setCode('');
       setStep('verification');
     } catch (requestError) {
       setError(requestError.message);
@@ -118,6 +121,7 @@ export default function LoginPage() {
           <InlineError>{error}</InlineError>
           {step === 'verification' ? (
             <form className="form-stack" onSubmit={submitCode} noValidate>
+              {demoCode && <div className="inline-banner success-banner" role="status">Prototype: no text or email is sent. Your one-time code is <strong>{demoCode}</strong> (expires in 5 minutes).</div>}
               <label className="field"><span>Six-digit code</span><input className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /> <FieldError>{fieldErrors.code}</FieldError></label>
               <button className="button primary full" disabled={busy}>{busy ? 'Verifying…' : 'Verify and sign in'}</button>
               <button type="button" className="text-button centered" onClick={() => { setStep('credentials'); setCode(''); setFieldErrors({}); setError(''); }}>Back to sign in</button>
@@ -125,7 +129,7 @@ export default function LoginPage() {
           ) : mode === 'register' ? (
             <form className="form-stack" onSubmit={submitRegistration} noValidate>
               <label className="field"><span>Name</span><input autoComplete="name" maxLength={80} value={registration.displayName} onChange={(event) => setRegistration({ ...registration, displayName: event.target.value })} /><FieldError>{fieldErrors.displayName}</FieldError></label>
-              <label className="field"><span>Email address</span><input type="email" autoComplete="email" value={registration.email} onChange={(event) => setRegistration({ ...registration, email: event.target.value })} /><FieldError>{fieldErrors.registrationEmail}</FieldError></label>
+              <label className="field"><span>Email address</span><input type="email" autoComplete="email" placeholder="yourname@texas-trust.test" value={registration.email} onChange={(event) => setRegistration({ ...registration, email: event.target.value })} /><small className="field-hint">Use a made-up address ending in @texas-trust.test. Real email addresses are not accepted.</small><FieldError>{fieldErrors.registrationEmail}</FieldError></label>
               <label className="field"><span>Password</span><input type="password" autoComplete="new-password" value={registration.password} onChange={(event) => setRegistration({ ...registration, password: event.target.value })} /><FieldError>{fieldErrors.registrationPassword}</FieldError></label>
               <label className="field"><span>Confirm password</span><input type="password" autoComplete="new-password" value={registration.confirmPassword} onChange={(event) => setRegistration({ ...registration, confirmPassword: event.target.value })} /><FieldError>{fieldErrors.confirmPassword}</FieldError></label>
               <button className="button primary full" disabled={busy}>{busy ? 'Creating account…' : 'Create view-only account'}</button>
