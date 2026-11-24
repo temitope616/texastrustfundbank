@@ -75,7 +75,7 @@ export default function TransferPage() {
       <div className="form-layout">
         <form className="form-panel form-stack" onSubmit={submit} noValidate>
           <InlineError>{error}</InlineError>
-          {sourceIsViewOnly && <InlineError>This new prototype account is view-only. Withdrawals and transfers are disabled.</InlineError>}
+          {sourceIsViewOnly && <InlineError> Withdrawals and transfers are disabled.</InlineError>}
           {success && <div className="inline-banner success-banner" role="status">{success}</div>}
           <div><AccountSelect accounts={accounts} value={fromAccountId} onChange={(value) => { setFromAccountId(value); setFieldErrors({ ...fieldErrors, fromAccountId: '', amount: '' }); }} label="From account" /><FieldError>{fieldErrors.fromAccountId}</FieldError></div>
           <label className="field"><span>To</span><select value={destination} onChange={(event) => setDestination(event.target.value)} required><option value="">Choose a destination</option><optgroup label="My accounts">{internalAccounts.map((account) => <option value={`account:${account.id}`} key={account.id}>{account.type === 'checking' ? 'Checking' : 'Savings'} •••• {account.last4}</option>)}</optgroup><optgroup label="External accounts">{payees.map((payee) => <option value={`payee:${payee.id}`} key={payee.id}>{payee.name} · {payee.bankName}</option>)}</optgroup></select><FieldError>{fieldErrors.destination}</FieldError></label>

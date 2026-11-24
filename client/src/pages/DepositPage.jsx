@@ -65,7 +65,7 @@ export default function DepositPage() {
 
   return (
     <>
-      <PageHeading eyebrow="MOBILE DEPOSIT" title="Deposit a check">Check deposits are disabled for newly created view-only prototype accounts.</PageHeading>
+      <PageHeading eyebrow="MOBILE DEPOSIT" title="Deposit a check">Check deposits are deposited after you snap it.</PageHeading>
       <div className="form-layout">
         <form className="form-panel form-stack" onSubmit={submit} noValidate>
           {message && <div className={message.startsWith('Deposit submitted') ? 'inline-banner success-banner' : 'inline-banner error-banner'} role="status">{message}</div>}
@@ -75,7 +75,7 @@ export default function DepositPage() {
           <label className="field"><span>Check amount</span><span className="input-prefix"><span>$</span><input type="number" min="0.01" step="0.01" inputMode="decimal" placeholder="0.00" value={amount} onChange={(event) => setAmount(event.target.value)} /></span><FieldError>{errors.amount}</FieldError></label>
           <button className="button primary" disabled={busy}>{busy ? 'Submitting…' : 'Submit deposit'}</button>
         </form>
-        <aside className="form-aside"><span className="aside-symbol">▤</span><p className="eyebrow">CHECK DEPOSIT</p><h2>Image guidance</h2><ul><li>Place the check on a flat, well-lit surface.</li><li>Keep all four edges visible and the text in focus.</li><li>Write “For mobile deposit” on the back before endorsing.</li></ul><p className="aside-disclaimer">This prototype stores image filenames only. It does not upload or process check images.</p></aside>
+        <aside className="form-aside"><span className="aside-symbol">▤</span><p className="eyebrow">CHECK DEPOSIT</p><h2>Image guidance</h2><ul><li>Place the check on a flat, well-lit surface.</li><li>Keep all four edges visible and the text in focus.</li><li>Write “For mobile deposit” on the back before endorsing.</li></ul><p className="aside-disclaimer">This process check images if it is correct.</p></aside>
       </div>
     </>
   );

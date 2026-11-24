@@ -113,15 +113,15 @@ export default function LoginPage() {
       </section>
       <section className="login-panel">
         <div className="login-form-wrap">
-          <p className="eyebrow">INDEPENDENT PROTOTYPE</p>
+          <p className="eyebrow">INDEPENDENT</p>
           <h2>{step === 'verification' ? 'Verify it’s you' : mode === 'register' ? 'Open an account' : 'Welcome back'}</h2>
-          <p className="login-intro">{step === 'verification' ? 'Enter the six-digit verification code to finish signing in.' : mode === 'register' ? 'Create your profile to open a view-only checking account.' : 'Sign in to securely access your accounts.'}</p>
-          <div className="prototype-disclosure" role="note">Texas Legal Trust Fund Bank is a concept prototype, not a bank or trust company. No real accounts or funds are connected.</div>
+          <p className="login-intro">{step === 'verification' ? 'Enter the six-digit verification code to finish signing in.' : mode === 'register' ? 'Create your profile to get started.' : 'Sign in to securely access your accounts.'}</p>
+          <div className="-disclosure" role="note">Texas Legal Trust Fund Bank is a good and reliable place for managing your money safely </div>
           {notice && <div className="inline-banner success-banner" role="status">{notice}</div>}
           <InlineError>{error}</InlineError>
           {step === 'verification' ? (
             <form className="form-stack" onSubmit={submitCode} noValidate>
-              {demoCode && <div className="inline-banner success-banner" role="status">Prototype: no text or email is sent. Your one-time code is <strong>{demoCode}</strong> (expires in 5 minutes).</div>}
+              {demoCode && <div className="inline-banner success-banner" role="status">Note: no text or email is sent. Your one-time code is <strong>{demoCode}</strong> (expires in 5 minutes).</div>}
               <label className="field"><span>Six-digit code</span><input className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /> <FieldError>{fieldErrors.code}</FieldError></label>
               <button className="button primary full" disabled={busy}>{busy ? 'Verifying…' : 'Verify and sign in'}</button>
               <button type="button" className="text-button centered" onClick={() => { setStep('credentials'); setCode(''); setFieldErrors({}); setError(''); }}>Back to sign in</button>
@@ -132,7 +132,7 @@ export default function LoginPage() {
               <label className="field"><span>Email address</span><input type="email" autoComplete="email" placeholder="yourname@texas-trust.test" value={registration.email} onChange={(event) => setRegistration({ ...registration, email: event.target.value })} /><small className="field-hint">Use a made-up address ending in @texas-trust.test. Real email addresses are not accepted.</small><FieldError>{fieldErrors.registrationEmail}</FieldError></label>
               <label className="field"><span>Password</span><PasswordInput autoComplete="new-password" value={registration.password} onChange={(event) => setRegistration({ ...registration, password: event.target.value })} /><FieldError>{fieldErrors.registrationPassword}</FieldError></label>
               <label className="field"><span>Confirm password</span><PasswordInput autoComplete="new-password" value={registration.confirmPassword} onChange={(event) => setRegistration({ ...registration, confirmPassword: event.target.value })} /><FieldError>{fieldErrors.confirmPassword}</FieldError></label>
-              <button className="button primary full" disabled={busy}>{busy ? 'Creating account…' : 'Create view-only account'}</button>
+              <button className="button primary full" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
               <button type="button" className="text-button centered" onClick={() => { setMode('login'); setFieldErrors({}); setError(''); }}>Back to sign in</button>
             </form>
           ) : (

@@ -68,7 +68,7 @@ export default function AccountPage() {
     setError('');
     try {
       const transactions = await fetchAllTransactions(id, token);
-      downloadCsv(`texas-trust-prototype-account-${account?.last4 || id}-activity.csv`, [
+      downloadCsv(`texas-trust--account-${account?.last4 || id}-activity.csv`, [
         ['Date', 'Description', 'Category', 'Type', 'Amount', 'Status', 'Balance after'],
         ...transactions.map((item) => [item.date, item.description, item.category, item.type, item.amount.toFixed(2), item.status, item.balanceAfter.toFixed(2)])
       ]);

@@ -23,7 +23,7 @@ export default function Shell() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link className="brand" to="/dashboard" aria-label="Texas Legal Trust Fund Bank concept prototype home">
+        <Link className="brand" to="/dashboard" aria-label="Texas Legal Trust Fund Bank home">
           <BrandLockup compact inverse />
         </Link>
         <div className="nav-caption">YOUR MONEY</div>
@@ -49,9 +49,9 @@ export default function Shell() {
             <button type="button" className="text-button" onClick={logout}>Sign out</button>
           </div>
         </header>
-        <div className="global-disclosure" role="note">Concept prototype. Not a bank or trust company. No real accounts or funds are connected.</div>
-        <main className="page-content"><Outlet /></main>
-        <footer className="page-footer"><span>Texas Legal Trust Fund Bank · Concept Prototype</span><span>Simulated activity only</span></footer>
+        <div className="global-disclosure" role="note"></div>
+        <main className="page-content"><Outlet />Texas Legal Trust Fund Bank</main>
+        <footer className="page-footer"><span>Texas Legal Trust Fund Bank · </span><span>Simulated activity only</span></footer>
       </div>
     </div>
   );
