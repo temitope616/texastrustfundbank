@@ -415,7 +415,7 @@ export function createApp(
       }
 
       const reviewNote = note || (decision === 'approved'
-        ? 'Approved for simulated processing; no funds moved.'
+        ? 'Approved for transfer processing; no funds moved.'
         : 'Rejected during review; no funds moved.');
       const status = decision === 'rejected' ? 'failed' : 'pending';
       await tx.prepare(`

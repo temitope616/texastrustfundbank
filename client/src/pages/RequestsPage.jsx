@@ -66,14 +66,14 @@ export default function RequestsPage() {
   const visibleRequests = filter === 'all' ? requests : requests.filter((item) => item.status === filter);
   const statusLabel = (status) => status === 'pending'
     ? 'pending review'
-    : status === 'approved' ? 'approved for simulation' : status;
+    : status === 'approved' ? 'approved for processing' : status;
 
   return (
     <>
       <PageHeading eyebrow="REQUEST ACTIVITY" title="Transfer requests">Track submissions, review events, and cancel requests that are still pending.</PageHeading>
       {error && <InlineError>{error}</InlineError>}
       {notice && <div className="inline-banner success-banner" role="status">{notice}</div>}
-      <div className="request-safety-note"><span className="security-dot" /><span>Review outcomes are simulated. No requests move funds; external recipients are unverified.</span></div>
+      <div className="request-safety-note"><span className="security-dot" /><span>Review outcomes are final. No requests move funds.</span></div>
       <div className="request-filters" role="group" aria-label="Filter requests by status">
         {filters.map((item) => {
           const count = item.value === 'all' ? requests.length : requests.filter((request) => request.status === item.value).length;

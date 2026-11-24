@@ -56,7 +56,7 @@ npm test -w server
 npm run build -w client
 ```
 
-All activity is local mock data. Transfer and bill-payment requests stay pending or receive simulated review outcomes and never change balances. External recipient details are not verified; the app does not connect to financial institutions, send real payments, or upload check images. Do not enter real bank account or routing numbers.
+All activity is local mock data. Transfer and bill-payment requests stay pending or receive review outcomes and never change balances. External recipient details are not verified; the app does not connect to financial institutions, send real payments, or upload check images. Do not enter real bank account or routing numbers.
 
 ## Deploying to Vercel with Turso
 

@@ -37,7 +37,7 @@ export default function ReviewQueuePage() {
         body: { decision, note: notes[requestId] || '' }
       });
       setNotice(decision === 'approved'
-        ? 'Approved for simulated processing. No funds moved.'
+        ? 'Approved for processing.'
         : 'Request rejected. No funds moved.');
       await loadQueue();
     } catch (requestError) {
@@ -52,7 +52,7 @@ export default function ReviewQueuePage() {
       <PageHeading eyebrow="REVIEW OPERATIONS" title="Transfer review">Review requests submitted by customer accounts.</PageHeading>
       {error && <InlineError>{error}</InlineError>}
       {notice && <div className="inline-banner success-banner" role="status">{notice}</div>}
-      <div className="request-safety-note"><span className="security-dot" /><span>Approvals only mark a request ready for simulated processing. This review console cannot move funds.</span></div>
+      <div className="request-safety-note"><span className="security-dot" /><span>Approvals only mark a request ready for processing.</span></div>
       <section className="review-queue" aria-label="Pending transfer requests">
         {requests.map((item) => (
           <article className="review-item" key={item.id}>

@@ -51,7 +51,7 @@ export default function Shell() {
         </header>
         <div className="global-disclosure" role="note"></div>
         <main className="page-content"><Outlet />Texas Legal Trust Fund Bank</main>
-        <footer className="page-footer"><span>Texas Legal Trust Fund Bank · </span><span>Simulated activity only</span></footer>
+        <footer className="page-footer"><span>Texas Legal Trust Fund Bank · </span><span>bank activity</span></footer>
       </div>
     </div>
   );

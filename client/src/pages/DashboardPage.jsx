@@ -103,7 +103,7 @@ export default function DashboardPage() {
             <p>Review and download transaction history.</p>
             {accounts.map((account) => <Link className="statement-link" key={account.id} to={`/accounts/${account.id}`}><AccountLabel account={account} /><span>→</span></Link>)}
           </section>
-          <div className="aside-footnote">Demo data is for illustration only and does not represent a real account.</div>
+          <div className="aside-footnote"> </div>
         </aside>
       </div>
     </>

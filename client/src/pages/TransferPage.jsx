@@ -83,7 +83,7 @@ export default function TransferPage() {
           <div className="field-row"><label className="field"><span>Frequency</span><select value={frequency} onChange={(event) => setFrequency(event.target.value)}><option value="once">One time</option><option value="recurring">Recurring</option></select></label><label className="field"><span>Date</span><input type="date" min={today} value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} /><FieldError>{fieldErrors.scheduledDate}</FieldError></label></div>
           <div className="form-actions"><button className="button primary" disabled={busy || sourceIsViewOnly || (internalAccounts.length === 0 && payees.length === 0)}>{busy ? 'Submitting…' : 'Submit transfer request'}</button><span className="secure-label"><span className="security-dot" /> Security review</span></div>
         </form>
-        <aside className="form-aside"><span className="aside-symbol">↗</span><p className="eyebrow">TRANSFER DETAILS</p><h2>Pending review</h2><ul><li>Every transfer request remains pending; no money moves out of either account.</li><li>External recipient details are not verified and no real bank is contacted.</li><li>Use mock details only. Do not enter full account or routing numbers.</li></ul></aside>
+        <aside className="form-aside"><span className="aside-symbol">↗</span><p className="eyebrow">TRANSFER DETAILS</p><h2>Pending review</h2><ul><li>Every transfer request remains pending; no money moves out of either account.</li><li>Approvals only mark a request ready for processing.</li><li>Do not enter full account or routing numbers.</li></ul></aside>
       </div>
     </>
   );

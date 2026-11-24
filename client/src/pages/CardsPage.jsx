@@ -40,7 +40,7 @@ export default function CardsPage() {
       <div className="cards-list">
         {cards.map((card, index) => (
           <article className="debit-card-row" key={card.id}>
-            <div className={`debit-card-art card-art-${index % 2}`}><div className="card-art-top"><span>TEXAS TRUST</span><span>NOT VALID</span></div><div className="chip-mark" /><div className="card-number">•••• &nbsp;•••• &nbsp;•••• &nbsp;{card.last4}</div><div className="card-art-bottom"><span>SIMULATED CARD</span><span>TEST</span></div></div>
+            <div className={`debit-card-art card-art-${index % 2}`}><div className="card-art-top"><span>TEXAS TRUST</span><span>NOT VALID</span></div><div className="chip-mark" /><div className="card-number">•••• &nbsp;•••• &nbsp;•••• &nbsp;{card.last4}</div><div className="card-art-bottom"><span>BANK CARD</span><span>TEST</span></div></div>
             <div className="card-info"><div className="card-info-heading"><div><p className="eyebrow">{card.accountType === 'checking' ? 'EVERYDAY CHECKING' : 'GROWTH SAVINGS'}</p><h2>Debit card ending {card.last4}</h2></div><span className={`status status-${card.status}`}>{card.status}</span></div><p className="muted card-expiry">Expires {card.expiryDate}</p><div className="card-actions">{card.status !== 'lost' && <button className="button secondary" onClick={() => changeStatus(card, card.status === 'locked' ? 'active' : 'locked')} disabled={busyId === card.id}>{busyId === card.id ? 'Updating…' : card.status === 'locked' ? 'Unlock card' : 'Lock card'}</button>}{card.status !== 'lost' && <button className="button danger-outline" onClick={() => changeStatus(card, 'lost')} disabled={busyId === card.id}>Report lost</button>}</div></div>
           </article>
         ))}
